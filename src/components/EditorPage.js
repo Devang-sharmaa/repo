@@ -18,7 +18,7 @@ const LANGUAGES = [
   "java",
   "cpp",
   "nodejs",
-  "c",
+  "c/c++",
   "ruby",
   "go",
   "scala",
@@ -43,14 +43,11 @@ function EditorPage() {
   const Location = useLocation();
   const navigate = useNavigate();
   const { roomId } = useParams();
-
   const socketRef = useRef(null);
 
   useEffect(() => {
     const init = async () => {
       socketRef.current = await initSocket();
-      socketRef.current.on("connect_error", (err) => handleErrors(err));
-      socketRef.current.on("connect_failed", (err) => handleErrors(err));
 
       const handleErrors = (err) => {
         console.log("Error", err);
@@ -58,40 +55,39 @@ function EditorPage() {
         navigate("/");
       };
 
+      socketRef.current.on("connect_error", handleErrors);
+      socketRef.current.on("connect_failed", handleErrors);
+
       socketRef.current.emit(ACTIONS.JOIN, {
         roomId,
         username: Location.state?.username,
       });
 
-      socketRef.current.on(
-        ACTIONS.JOINED,
-        ({ clients, username, socketId }) => {
-          if (username !== Location.state?.username) {
-            toast.success(`${username} joined the room.`);
-          }
-          setClients(clients);
-          socketRef.current.emit(ACTIONS.SYNC_CODE, {
-            code: codeRef.current,
-            socketId,
-          });
+      socketRef.current.on(ACTIONS.JOINED, ({ clients, username, socketId }) => {
+        if (username !== Location.state?.username) {
+          toast.success(`${username} joined the room.`);
         }
-      );
+        setClients(clients);
+        socketRef.current.emit(ACTIONS.SYNC_CODE, {
+          code: codeRef.current,
+          socketId,
+        });
+      });
 
       socketRef.current.on(ACTIONS.DISCONNECTED, ({ socketId, username }) => {
         toast.success(`${username} left the room`);
-        setClients((prev) => {
-          return prev.filter((client) => client.socketId !== socketId);
-        });
+        setClients((prev) => prev.filter((client) => client.socketId !== socketId));
       });
     };
+
     init();
 
     return () => {
-      socketRef.current && socketRef.current.disconnect();
+      socketRef.current?.disconnect();
       socketRef.current.off(ACTIONS.JOINED);
       socketRef.current.off(ACTIONS.DISCONNECTED);
     };
-  }, []);
+  }, [Location.state?.username, navigate, roomId]);
 
   if (!Location.state) {
     return <Navigate to="/" />;

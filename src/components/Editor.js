@@ -9,6 +9,7 @@ import { ACTIONS } from "../Actions";
 
 function Editor({ socketRef, roomId, onCodeChange }) {
   const editorRef = useRef(null);
+
   useEffect(() => {
     const init = async () => {
       const editor = CodeMirror.fromTextArea(
@@ -21,14 +22,12 @@ function Editor({ socketRef, roomId, onCodeChange }) {
           lineNumbers: true,
         }
       );
-      // for sync the code
       editorRef.current = editor;
 
       editor.setSize(null, "100%");
       editorRef.current.on("change", (instance, changes) => {
-        // console.log("changes", instance ,  changes );
         const { origin } = changes;
-        const code = instance.getValue(); // code has value which we write
+        const code = instance.getValue();
         onCodeChange(code);
         if (origin !== "setValue") {
           socketRef.current.emit(ACTIONS.CODE_CHANGE, {
@@ -40,9 +39,8 @@ function Editor({ socketRef, roomId, onCodeChange }) {
     };
 
     init();
-  }, []);
+  }, [onCodeChange, roomId, socketRef]);
 
-  // data receive from server
   useEffect(() => {
     if (socketRef.current) {
       socketRef.current.on(ACTIONS.CODE_CHANGE, ({ code }) => {
@@ -52,9 +50,9 @@ function Editor({ socketRef, roomId, onCodeChange }) {
       });
     }
     return () => {
-      socketRef.current.off(ACTIONS.CODE_CHANGE);
+      socketRef.current?.off(ACTIONS.CODE_CHANGE);
     };
-  }, [socketRef.current]);
+  }, [socketRef]);
 
   return (
     <div style={{ height: "600px" }}>
